@@ -1,8 +1,10 @@
-use std::sync::{Arc, RwLock};
-use actix_web::{delete, Error, FromRequest, Handler, HttpResponse, Resource, Responder, Scope, web};
-use futures::future::{Ready, ok};
+use actix_web::{
+    delete, web, Error, FromRequest, Handler, HttpResponse, Resource, Responder, Scope,
+};
+use futures::future::{ok, Ready};
 use http::Method;
 use openapiv3::OpenAPI;
+use std::sync::{Arc, RwLock};
 
 use oasgen_core::{OaOperation, OaSchema};
 
@@ -29,20 +31,25 @@ pub trait ResourceFactory<'a>: Send + Fn() -> Resource {
 }
 
 impl<'a, T> ResourceFactory<'a> for T
-    where T: 'static + Clone + Fn() -> Resource + Send
+where
+    T: 'static + Clone + Fn() -> Resource + Send,
 {
     fn manual_clone(&self) -> InnerResourceFactory<'static> {
         Box::new(self.clone())
     }
 }
 
-pub type InnerResourceFactory<'a> = Box<dyn ResourceFactory<'a, Output=Resource>>;
+pub type InnerResourceFactory<'a> = Box<dyn ResourceFactory<'a, Output = Resource>>;
 
-fn build_inner_resource<F, Args>(path: String, method: Method, handler: F) -> InnerResourceFactory<'static>
-    where
-        F: Handler<Args> + 'static + Copy + Send,
-        Args: FromRequest + 'static,
-        F::Output: Responder + 'static,
+fn build_inner_resource<F, Args>(
+    path: String,
+    method: Method,
+    handler: F,
+) -> InnerResourceFactory<'static>
+where
+    F: Handler<Args> + 'static + Copy + Send,
+    Args: FromRequest + 'static,
+    F::Output: Responder + 'static,
 {
     Box::new(move || {
         actix_web::Resource::new(path.clone())
@@ -50,35 +57,40 @@ fn build_inner_resource<F, Args>(path: String, method: Method, handler: F) -> In
     })
 }
 
-impl Server<ActixRouter> {
-    pub fn actix() -> Self {
-        Self::new()
-    }
-
-    pub fn get<F, Args, Signature>(mut self, path: &str, handler: F) -> Self
-        where
-            F: actix_web::Handler<Args>,
-            Args: actix_web::FromRequest + 'static,
-            F::Output: actix_web::Responder + 'static,
-            <F as actix_web::Handler<Args>>::Output: OaSchema,
-            F: OaOperation<Signature> + Copy + Send,
-    {
-        self.add_handler_to_spec(path, Method::GET, &handler);
-        self.router.0.push(build_inner_resource(path.to_string(), Method::GET, handler));
-        self
-    }
-
-    pub fn post<F, Args, Signature>(mut self, path: &str, handler: F) -> Self
+macro_rules! route_method {
+    ($variant:ident, $method:ident) => {
+        pub fn $method<F, Args, Signature>(mut self, path: &str, handler: F) -> Self
         where
             F: actix_web::Handler<Args> + OaOperation<Signature> + Copy + Send,
             Args: actix_web::FromRequest + 'static,
             F::Output: actix_web::Responder + 'static,
             <F as actix_web::Handler<Args>>::Output: OaSchema,
-    {
-        self.add_handler_to_spec(path, Method::POST, &handler);
-        self.router.0.push(build_inner_resource(path.to_string(), Method::POST, handler));
-        self
+        {
+            self.add_handler_to_spec(path, Method::$variant, &handler);
+            self.router.0.push(build_inner_resource(
+                path.to_string(),
+                Method::$variant,
+                handler,
+            ));
+            self
+        }
+    };
+}
+
+impl Server<ActixRouter> {
+    pub fn actix() -> Self {
+        Self::new()
     }
+
+    route_method!(GET, get);
+    route_method!(POST, post);
+    route_method!(PUT, put);
+    route_method!(DELETE, delete);
+    route_method!(HEAD, head);
+    route_method!(CONNECT, connect);
+    route_method!(OPTIONS, options);
+    route_method!(TRACE, trace);
+    route_method!(PATCH, patch);
 }
 
 impl Server<ActixRouter, Arc<OpenAPI>> {
@@ -88,10 +100,14 @@ impl Server<ActixRouter, Arc<OpenAPI>> {
             scope = scope.service(resource());
         }
         if let Some(path) = self.json_route {
-            scope = scope.service(web::resource(&path).route(web::get().to(OaSpecJsonHandler(self.openapi.clone()))));
+            scope = scope.service(
+                web::resource(&path).route(web::get().to(OaSpecJsonHandler(self.openapi.clone()))),
+            );
         }
         if let Some(path) = self.yaml_route {
-            scope = scope.service(web::resource(&path).route(web::get().to(OaSpecYamlHandler(self.openapi.clone()))));
+            scope = scope.service(
+                web::resource(&path).route(web::get().to(OaSpecYamlHandler(self.openapi.clone()))),
+            );
         }
         scope
     }
