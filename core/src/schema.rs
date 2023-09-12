@@ -81,6 +81,78 @@ macro_rules! impl_oa_schema_passthrough {
 }
 
 #[macro_export]
+macro_rules! impl_oa_schema_query {
+    ($t:ty) => {
+        impl<T> $crate::OaSchema for $t
+        where
+            T: $crate::OaSchema,
+        {
+            fn parameters() -> Option<Vec<ReferenceOr<oa::Parameter>>> {
+                Some(
+                    T::schema()?
+                        .properties()?
+                        .into_iter()
+                        .map(|(name, schema)| {
+                            ReferenceOr::Item(oa::Parameter::Query {
+                                parameter_data: oa::ParameterData {
+                                    name: name.clone(),
+                                    description: None,
+                                    required: false,
+                                    deprecated: None,
+                                    format: oa::ParameterSchemaOrContent::Schema(schema.clone()),
+                                    example: None,
+                                    examples: Default::default(),
+                                    explode: None,
+                                    extensions: Default::default(),
+                                },
+                                allow_reserved: false,
+                                style: oa::QueryStyle::Form,
+                                allow_empty_value: None,
+                            })
+                        })
+                        .collect::<Vec<_>>(),
+                )
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! impl_oa_schema_header {
+    ($t:ty) => {
+        impl<T> $crate::OaSchema for $t
+        where
+            T: $crate::OaSchema,
+        {
+            fn parameters() -> Option<Vec<ReferenceOr<oa::Parameter>>> {
+                Some(
+                    T::schema()?
+                        .properties()?
+                        .into_iter()
+                        .map(|(name, schema)| {
+                            ReferenceOr::Item(oa::Parameter::Header {
+                                parameter_data: oa::ParameterData {
+                                    name: name.clone(),
+                                    description: None,
+                                    required: false,
+                                    deprecated: None,
+                                    format: oa::ParameterSchemaOrContent::Schema(schema.clone()),
+                                    example: None,
+                                    examples: Default::default(),
+                                    explode: None,
+                                    extensions: Default::default(),
+                                },
+                                style: oa::HeaderStyle::Simple,
+                            })
+                        })
+                        .collect::<Vec<_>>(),
+                )
+            }
+        }
+    };
+}
+
+#[macro_export]
 macro_rules! impl_oa_schema_none {
     ($t:ty) => {
         impl $crate::OaSchema for $t {}

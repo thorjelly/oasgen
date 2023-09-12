@@ -1,4 +1,7 @@
-use crate::{impl_oa_schema_none, impl_oa_schema_passthrough, OaSchema};
+use crate::{
+    impl_oa_schema_header, impl_oa_schema_none, impl_oa_schema_passthrough, impl_oa_schema_query,
+    OaSchema,
+};
 use openapiv3 as oa;
 use openapiv3::ReferenceOr;
 
@@ -45,49 +48,8 @@ construct_path!(A1);
 construct_path!(A1, A2);
 construct_path!(A1, A2, A3);
 
-impl<T: OaSchema> OaSchema for actix_web::web::Query<T> {
-    fn parameters() -> Option<Vec<ReferenceOr<oa::Parameter>>> {
-        Some(vec![ReferenceOr::Item(oa::Parameter::Query {
-            parameter_data: oa::ParameterData {
-                name: "query".to_string(),
-                description: None,
-                required: false,
-                deprecated: None,
-                format: oa::ParameterSchemaOrContent::Schema(ReferenceOr::Item(
-                    T::schema().unwrap(),
-                )),
-                example: None,
-                examples: Default::default(),
-                explode: None,
-                extensions: Default::default(),
-            },
-            allow_reserved: false,
-            style: oa::QueryStyle::Form,
-            allow_empty_value: None,
-        })])
-    }
-}
+impl_oa_schema_query!(actix_web::web::Query<T>);
+impl_oa_schema_header!(actix_web::web::Header<T>);
 
 #[cfg(feature = "qs")]
-impl<T: OaSchema> OaSchema for serde_qs::actix::QsQuery<T> {
-    fn parameters() -> Option<Vec<ReferenceOr<oa::Parameter>>> {
-        Some(vec![ReferenceOr::Item(oa::Parameter::Query {
-            parameter_data: oa::ParameterData {
-                name: "query".to_string(),
-                description: None,
-                required: false,
-                deprecated: None,
-                format: oa::ParameterSchemaOrContent::Schema(ReferenceOr::Item(
-                    T::schema().unwrap(),
-                )),
-                example: None,
-                examples: Default::default(),
-                explode: None,
-                extensions: Default::default(),
-            },
-            allow_reserved: false,
-            style: oa::QueryStyle::Form,
-            allow_empty_value: None,
-        })])
-    }
-}
+impl_oa_schema_query!(serde_qs::actix::QsQuery<T>);
