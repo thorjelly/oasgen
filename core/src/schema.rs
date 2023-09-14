@@ -233,7 +233,7 @@ impl<T> OaSchema for Option<T>
 where
     T: OaSchema,
 {
-    type References = ();
+    type References = T::References;
 
     fn schema_name() -> Option<&'static str> {
         T::schema_name()
@@ -255,7 +255,7 @@ impl<T, E> OaSchema for Result<T, E>
 where
     T: OaSchema,
 {
-    type References = ();
+    type References = T::References;
 
     fn schema_name() -> Option<&'static str> {
         T::schema_name()
