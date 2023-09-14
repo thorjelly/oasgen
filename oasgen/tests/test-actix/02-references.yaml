@@ -1,0 +1,75 @@
+openapi: 3.0.3
+info:
+  title: ''
+  version: ''
+paths:
+  /vec:
+    post:
+      operationId: vec
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/VecRequestItem'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VecResponseItem'
+  /map:
+    post:
+      operationId: map
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                $ref: '#/components/schemas/MapRequestItem'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  $ref: '#/components/schemas/MapResponseItem'
+components:
+  schemas:
+    VecRequestItem:
+      type: object
+      properties:
+        foo:
+          type: string
+      required:
+      - foo
+    VecResponseItem:
+      type: object
+      properties:
+        foo:
+          type: boolean
+      required:
+      - foo
+    MapRequestItem:
+      type: object
+      properties:
+        foo:
+          type: string
+      required:
+      - foo
+    MapResponseItem:
+      type: object
+      properties:
+        foo:
+          type: boolean
+      required:
+      - foo
