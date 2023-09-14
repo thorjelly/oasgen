@@ -1,13 +1,12 @@
 #![allow(unused)]
 
+use crate::OaSchema;
+use openapiv3 as oa;
+use openapiv3::{MediaType, Operation, ReferenceOr, RequestBody, Response, Responses, StatusCode};
+use pin_project_lite::pin_project;
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use openapiv3::{MediaType, Operation, ReferenceOr, RequestBody, Response, Responses, StatusCode};
-use pin_project_lite::pin_project;
-use openapiv3 as oa;
-use crate::OaSchema;
-
 
 fn type_name_to_operation_id(type_name: &str) -> Option<String> {
     Some(type_name.split("::").skip(1).collect::<Vec<_>>().join("_"))
@@ -45,10 +44,12 @@ pin_project! {
     }
 }
 
-impl<F, Signature> TypedResponseFuture<F, Signature>
-{
+impl<F, Signature> TypedResponseFuture<F, Signature> {
     pub fn new(inner: F) -> Self {
-        Self { inner, _marker: Default::default() }
+        Self {
+            inner,
+            _marker: Default::default(),
+        }
     }
 
     pub fn into_inner(self) -> F {
@@ -57,8 +58,8 @@ impl<F, Signature> TypedResponseFuture<F, Signature>
 }
 
 impl<F, Signature> Future for TypedResponseFuture<F, Signature>
-    where
-        F: Future,
+where
+    F: Future,
 {
     type Output = F::Output;
 
@@ -105,9 +106,11 @@ macro_rules! construct_operation {
                     .flatten()
                     .collect::<Vec<_>>();
 
-                let body = vec![
+                let request_body = vec![
                     $( $arg::schema_ref(), )+
                 ].into_iter().flatten().next();
+
+                let response_body = Fut::Output::schema_ref();
 
                 let mut operation = Operation {
                     operation_id: type_name_to_operation_id(std::any::type_name::<F>()),
@@ -115,8 +118,10 @@ macro_rules! construct_operation {
                     parameters,
                     ..Operation::default()
                 };
-                operation.add_request_body_json(body);
-                operation.add_response_success_json(Fut::Output::schema_ref());
+
+                if request_body.is_some() { operation.add_request_body_json(request_body); }
+                if response_body.is_some() { operation.add_response_success_json(response_body); }
+
                 operation
             }
         }

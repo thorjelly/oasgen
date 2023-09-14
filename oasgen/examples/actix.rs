@@ -4,9 +4,15 @@
 // forwarding to an inner mod fixes the issue.
 #[cfg(feature = "actix")]
 mod inner {
-    use oasgen::{OaSchema, Server, openapi};
-    use actix_web::web::Json;
+    use actix_web::{web, App, HttpResponse, HttpServer};
+    use oasgen::{openapi, OaSchema, Server};
     use serde::{Deserialize, Serialize};
+    use std::fs::File;
+
+    #[derive(Deserialize, OaSchema, Debug)]
+    pub struct Echo {
+        pub echo: String,
+    }
 
     #[derive(OaSchema, Deserialize)]
     pub struct SendCode {
@@ -25,43 +31,52 @@ mod inner {
     }
 
     #[openapi]
-    async fn send_code(_body: Json<SendCode>) -> Json<SendCodeResponse> {
-        Json(SendCodeResponse { found_account: false })
+    async fn echo(query: web::Query<Echo>) -> HttpResponse {
+        println!("{}", query.echo);
+        HttpResponse::Ok().finish()
     }
 
     #[openapi]
-    async fn verify_code(_body: Json<VerifyCode>) -> Json<()> {
-        Json(())
+    async fn send_code(_body: web::Json<SendCode>) -> web::Json<SendCodeResponse> {
+        web::Json(SendCodeResponse {
+            found_account: false,
+        })
+    }
+
+    #[openapi]
+    async fn verify_code(_body: web::Json<VerifyCode>) -> HttpResponse {
+        HttpResponse::Ok().finish()
     }
 
     #[tokio::main]
     pub async fn main() -> std::io::Result<()> {
-        use std::fs::File;
-        use actix_web::{HttpResponse, web, HttpServer, App};
-
         let host = "0.0.0.0";
         let port = 5000;
         let host = format!("{}:{}", host, port);
 
         let server = Server::actix()
+            .get("/echo", echo)
             .post("/send-code", send_code)
             .post("/verify-code", verify_code)
+            .route_json_spec("/openapi.json")
             .route_yaml_spec("/openapi.yaml")
             .write_and_exit_if_env_var_set("./openapi.yaml")
-            .freeze()
-            ;
+            .freeze();
 
         println!("Listening on {}", host);
         HttpServer::new(move || {
             let spec = server.openapi.clone();
             App::new()
                 // App::new()
-                .route("/healthcheck", web::get().to(|| async { HttpResponse::Ok().body("Ok") }))
+                .route(
+                    "/healthcheck",
+                    web::get().to(|| async { HttpResponse::Ok().body("Ok") }),
+                )
                 .service(server.clone().into_service())
         })
-            .bind(host)?
-            .run()
-            .await
+        .bind(host)?
+        .run()
+        .await
     }
 }
 
