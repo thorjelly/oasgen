@@ -1,23 +1,18 @@
-use crate::{impl_oa_schema_passthrough, OaSchema};
+use crate::{impl_oa_schema_none, impl_oa_schema_passthrough};
 
 impl_oa_schema_passthrough!(axum::Json<T>);
 
-impl<T> OaSchema for axum::extract::Extension<T> {}
-
-impl<T> OaSchema for axum::extract::State<T> {}
-
-impl<T> OaSchema for axum::http::Response<T> {}
-
-impl<T> OaSchema for axum::http::Request<T> {}
-
-impl<T> OaSchema for axum::extract::ConnectInfo<T> {}
-
-impl OaSchema for axum::http::HeaderMap {}
+impl_oa_schema_none!(axum::extract::Extension<T>, T);
+impl_oa_schema_none!(axum::extract::State<T>, T);
+impl_oa_schema_none!(axum::extract::ConnectInfo<T>, T);
+impl_oa_schema_none!(axum::http::Response<T>, T);
+impl_oa_schema_none!(axum::http::Request<T>, T);
+impl_oa_schema_none!(axum::http::HeaderMap<T>, T);
 
 // TODO fill this out
-impl<T> OaSchema for axum::extract::Query<T> {}
+impl_oa_schema_none!(axum::extract::Query<T>, T);
 
 // TODO fill this out
-impl<T> OaSchema for axum::extract::Path<T> {}
+impl_oa_schema_none!(axum::extract::Path<T>, T);
 
-impl OaSchema for axum::http::request::Parts {}
+impl_oa_schema_none!(axum::http::request::Parts);

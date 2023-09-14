@@ -100,9 +100,8 @@ impl<Router: Default> Server<Router, OpenAPI> {
             _ => panic!("Unsupported method: {}", method),
         }
 
-        for reference in F::references() {
+        for (reference, schema) in F::all_references() {
             if !self.openapi.schemas().contains_key(reference) {
-                let schema = F::referenced_schema(reference);
                 self.openapi.schemas_mut().insert(reference.to_string(), ReferenceOr::Item(schema));
             }
         }

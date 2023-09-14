@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use indexmap::IndexMap;
 use oa::AdditionalProperties;
 use openapiv3 as oa;
 use openapiv3::{ArrayType, ObjectType, ReferenceOr, Schema, SchemaData, SchemaKind, Type};
@@ -25,7 +26,19 @@ mod http;
 #[cfg(feature = "sid")]
 mod sid;
 
+pub trait HasReferences {
+    fn all_references() -> IndexMap<&'static str, oa::Schema>;
+}
+
+impl HasReferences for () {
+    fn all_references() -> IndexMap<&'static str, oa::Schema> {
+        IndexMap::new()
+    }
+}
+
 pub trait OaSchema {
+    type References: HasReferences;
+
     fn schema_name() -> Option<&'static str> {
         None
     }
@@ -47,6 +60,8 @@ pub trait OaSchema {
 macro_rules! impl_oa_schema {
     ($t:ty,$schema:expr) => {
         impl $crate::OaSchema for $t {
+            type References = ();
+
             fn schema_ref() -> Option<$crate::ReferenceOr<$crate::Schema>> {
                 Some($crate::ReferenceOr::Item($schema))
             }
@@ -65,6 +80,8 @@ macro_rules! impl_oa_schema_passthrough {
         where
             T: $crate::OaSchema,
         {
+            type References = T::References;
+
             fn schema_name() -> Option<&'static str> {
                 T::schema_name()
             }
@@ -87,6 +104,8 @@ macro_rules! impl_oa_schema_query {
         where
             T: $crate::OaSchema,
         {
+            type References = ();
+
             fn parameters() -> Option<Vec<ReferenceOr<oa::Parameter>>> {
                 Some(
                     T::schema()?
@@ -124,6 +143,8 @@ macro_rules! impl_oa_schema_header {
         where
             T: $crate::OaSchema,
         {
+            type References = ();
+
             fn parameters() -> Option<Vec<ReferenceOr<oa::Parameter>>> {
                 Some(
                     T::schema()?
@@ -154,8 +175,10 @@ macro_rules! impl_oa_schema_header {
 
 #[macro_export]
 macro_rules! impl_oa_schema_none {
-    ($t:ty) => {
-        impl $crate::OaSchema for $t {}
+    ($t:ty $(, $arg:ident)*) => {
+        impl<$($arg),*> $crate::OaSchema for $t {
+            type References = ();
+        }
     };
 }
 
@@ -179,6 +202,8 @@ impl<T> OaSchema for Vec<T>
 where
     T: OaSchema,
 {
+    type References = (T,);
+
     fn schema_ref() -> Option<ReferenceOr<Schema>> {
         Some(ReferenceOr::Item(Schema {
             schema_data: SchemaData::default(),
@@ -208,6 +233,8 @@ impl<T> OaSchema for Option<T>
 where
     T: OaSchema,
 {
+    type References = ();
+
     fn schema_name() -> Option<&'static str> {
         T::schema_name()
     }
@@ -228,6 +255,8 @@ impl<T, E> OaSchema for Result<T, E>
 where
     T: OaSchema,
 {
+    type References = ();
+
     fn schema_name() -> Option<&'static str> {
         T::schema_name()
     }
@@ -245,6 +274,8 @@ impl<K, V> OaSchema for HashMap<K, V>
 where
     V: OaSchema,
 {
+    type References = (V,);
+
     fn schema_ref() -> Option<ReferenceOr<Schema>> {
         Some(ReferenceOr::Item(Schema {
             schema_data: SchemaData::default(),
@@ -268,6 +299,43 @@ where
         })
     }
 }
+
+macro_rules! construct_has_references {
+    ($($arg:ident),+) => {
+        impl<$($arg),+> HasReferences for ($($arg,)+)
+            where
+                $($arg: OaSchema),+,
+        {
+            fn all_references() -> IndexMap<&'static str, oa::Schema> {
+                let mut map = [$(($arg::schema_name(), $arg::schema())),+]
+                    .into_iter()
+                    .filter_map(|(n, s)| Some((n?, s?)))
+                    .collect::<IndexMap<_, _>>();
+
+                $(map.extend($arg::References::all_references());)+
+
+                map
+            }
+        }
+    }
+}
+
+construct_has_references!(A1);
+construct_has_references!(A1, A2);
+construct_has_references!(A1, A2, A3);
+construct_has_references!(A1, A2, A3, A4);
+construct_has_references!(A1, A2, A3, A4, A5);
+construct_has_references!(A1, A2, A3, A4, A5, A6);
+construct_has_references!(A1, A2, A3, A4, A5, A6, A7);
+construct_has_references!(A1, A2, A3, A4, A5, A6, A7, A8);
+construct_has_references!(A1, A2, A3, A4, A5, A6, A7, A8, A9);
+construct_has_references!(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10);
+construct_has_references!(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11);
+construct_has_references!(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12);
+construct_has_references!(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13);
+construct_has_references!(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14);
+construct_has_references!(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15);
+construct_has_references!(A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16);
 
 #[cfg(feature = "uuid")]
 impl_oa_schema!(uuid::Uuid, Schema::new_string().with_format("uuid"));

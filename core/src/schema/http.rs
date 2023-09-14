@@ -1,8 +1,6 @@
-use http::{Method, Version, Uri};
-use crate::OaSchema;
+use crate::impl_oa_schema_none;
+use http::{Method, Uri, Version};
 
-impl OaSchema for Method {}
-
-impl OaSchema for Version {}
-
-impl OaSchema for Uri {}
+impl_oa_schema_none!(Method);
+impl_oa_schema_none!(Version);
+impl_oa_schema_none!(Uri);

@@ -78,6 +78,8 @@ pub fn derive_oaschema_struct(ident: &Ident, fields: &[Field]) -> TokenStream {
     let ref_name = format!("#/components/schemas/{}", ident);
     let expanded = quote! {
         impl ::oasgen::OaSchema for #ident {
+            type References = ();
+            
             fn schema_name() -> Option<&'static str> {
                 Some(#name)
             }
@@ -200,6 +202,8 @@ pub fn derive_oaschema_enum(ident: &Ident, variants: &[Variant], tag: &TagType) 
     let ref_name = format!("#/components/schemas/{}", ident);
     let expanded = quote! {
         impl ::oasgen::OaSchema for #ident {
+            type References = ();
+
             fn schema_name() -> Option<&'static str> {
                 Some(#name)
             }

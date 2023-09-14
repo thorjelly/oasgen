@@ -1,9 +1,11 @@
 #![allow(unused)]
 
-use crate::OaSchema;
+use crate::{HasReferences, OaSchema};
+use indexmap::IndexMap;
 use openapiv3 as oa;
 use openapiv3::{MediaType, Operation, ReferenceOr, RequestBody, Response, Responses, StatusCode};
 use pin_project_lite::pin_project;
+use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -13,10 +15,8 @@ fn type_name_to_operation_id(type_name: &str) -> Option<String> {
 }
 
 pub trait OaOperation<Signature> {
-    /// Allows looking up the schema itself of a referenced schema
-    fn referenced_schema(schema: &str) -> oa::Schema;
-    /// List of all schemas referenced by this operation
-    fn references() -> Vec<&'static str>;
+    /// All the nested references contained in the operation
+    fn all_references() -> IndexMap<&'static str, oa::Schema>;
     /// Constructs the operation
     fn operation() -> Operation;
 }
@@ -80,21 +80,8 @@ macro_rules! construct_operation {
                 Fut::Output: OaSchema,
                 FuncMetadata: FunctionMetadata,
         {
-            fn referenced_schema(schema: &str) -> oa::Schema {
-                $(
-                    if $arg::schema_name().map(|s| s == schema).unwrap_or(false) {
-                        return $arg::schema().expect(&format!("Schema not found: {}", schema));
-                    }
-                )+
-                if Fut::Output::schema_name().map(|s| s == schema).unwrap_or(false) {
-                    Fut::Output::schema().expect(&format!("Schema not found: {}", schema))
-                } else {
-                    panic!("Unknown schema: {}", schema)
-                }
-            }
-
-            fn references() -> Vec<&'static str> {
-                vec![$($arg::schema_name()),+, Fut::Output::schema_name()].into_iter().flatten().collect()
+            fn all_references() -> IndexMap<&'static str, oa::Schema> {
+                <($($arg,)+ Fut::Output)>::all_references()
             }
 
             fn operation() -> Operation {

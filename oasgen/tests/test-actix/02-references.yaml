@@ -3,16 +3,34 @@ info:
   title: ''
   version: ''
 paths:
-  /vec:
+  /code:
     post:
-      operationId: vec
+      operationId: send_code
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendCode'
+        required: true
+      responses:
+        '200':
+          description: ''
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendCodeResponse'
+  /vec_of_map:
+    post:
+      operationId: vec_of_map
       requestBody:
         content:
           application/json:
             schema:
               type: array
               items:
-                $ref: '#/components/schemas/VecRequestItem'
+                type: object
+                additionalProperties:
+                  $ref: '#/components/schemas/MapRequestItem'
         required: true
       responses:
         '200':
@@ -22,43 +40,25 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/VecResponseItem'
-  /map:
-    post:
-      operationId: map
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties:
-                $ref: '#/components/schemas/MapRequestItem'
-        required: true
-      responses:
-        '200':
-          description: ''
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties:
-                  $ref: '#/components/schemas/MapResponseItem'
+                  type: object
+                  additionalProperties:
+                    $ref: '#/components/schemas/MapResponseItem'
 components:
   schemas:
-    VecRequestItem:
+    SendCode:
       type: object
       properties:
-        foo:
+        mobile:
           type: string
       required:
-      - foo
-    VecResponseItem:
+      - mobile
+    SendCodeResponse:
       type: object
       properties:
-        foo:
+        found_account:
           type: boolean
       required:
-      - foo
+      - found_account
     MapRequestItem:
       type: object
       properties:

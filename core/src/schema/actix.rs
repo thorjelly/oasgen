@@ -7,8 +7,7 @@ use openapiv3::ReferenceOr;
 
 impl_oa_schema_passthrough!(actix_web::web::Json<T>);
 
-impl<T> OaSchema for actix_web::web::Data<T> {}
-
+impl_oa_schema_none!(actix_web::web::Data<T>, T);
 impl_oa_schema_none!(actix_web::HttpRequest);
 impl_oa_schema_none!(actix_web::HttpResponse);
 
@@ -18,6 +17,8 @@ macro_rules! construct_path {
             where
                 $($arg: OaSchema),+
         {
+            type References = ();
+
             fn parameters() -> Option<Vec<ReferenceOr<oa::Parameter>>> {
                 Some(vec![
                     $(
