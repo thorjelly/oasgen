@@ -107,18 +107,19 @@ macro_rules! impl_oa_schema_query {
             type References = ();
 
             fn parameters() -> Option<Vec<ReferenceOr<oa::Parameter>>> {
+                let schema = T::schema()?;
                 Some(
-                    T::schema()?
+                    schema
                         .properties()?
                         .into_iter()
-                        .map(|(name, schema)| {
+                        .map(|(name, s)| {
                             ReferenceOr::Item(oa::Parameter::Query {
                                 parameter_data: oa::ParameterData {
                                     name: name.clone(),
                                     description: None,
-                                    required: false,
+                                    required: schema.required(&name),
                                     deprecated: None,
-                                    format: oa::ParameterSchemaOrContent::Schema(schema.clone()),
+                                    format: oa::ParameterSchemaOrContent::Schema(s.clone()),
                                     example: None,
                                     examples: Default::default(),
                                     explode: None,
@@ -146,18 +147,19 @@ macro_rules! impl_oa_schema_header {
             type References = ();
 
             fn parameters() -> Option<Vec<ReferenceOr<oa::Parameter>>> {
+                let schema = T::schema()?;
                 Some(
-                    T::schema()?
+                    schema
                         .properties()?
                         .into_iter()
-                        .map(|(name, schema)| {
+                        .map(|(name, s)| {
                             ReferenceOr::Item(oa::Parameter::Header {
                                 parameter_data: oa::ParameterData {
                                     name: name.clone(),
                                     description: None,
-                                    required: false,
+                                    required: schema.required(&name),
                                     deprecated: None,
-                                    format: oa::ParameterSchemaOrContent::Schema(schema.clone()),
+                                    format: oa::ParameterSchemaOrContent::Schema(s.clone()),
                                     example: None,
                                     examples: Default::default(),
                                     explode: None,
