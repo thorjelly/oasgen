@@ -52,7 +52,7 @@ pub fn derive_oaschema_process_fields(fields: &[Field]) -> TokenStream2 {
                 let required = if openapi_attrs.skip || openapi_attrs.skip_serializing_if.is_some() {
                     quote! {}
                 } else {
-                    quote! { o.required_mut().unwrap().push(#name.to_string()); }
+                    quote! { if #ty::required() { o.required_mut().unwrap().push(#name.to_string()); } }
                 };
 
                 quote! {

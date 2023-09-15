@@ -54,6 +54,10 @@ pub trait OaSchema {
     fn parameters() -> Option<Vec<ReferenceOr<oa::Parameter>>> {
         None
     }
+
+    fn required() -> bool {
+        true
+    }
 }
 
 #[macro_export]
@@ -250,6 +254,10 @@ where
             schema.schema_data.nullable = true;
             schema
         })
+    }
+
+    fn required() -> bool {
+        false
     }
 }
 
