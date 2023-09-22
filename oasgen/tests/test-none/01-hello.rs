@@ -1,4 +1,4 @@
-use oasgen::{OaSchema, Server, openapi};
+use oasgen::{openapi, OaSchema, Server};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, OaSchema)]
@@ -11,19 +11,18 @@ pub struct SendCodeResponse {
     pub found_account: bool,
 }
 
-#[openapi]
+/// Send a code to /hello
+#[openapi(operation_id = "getHello")]
 async fn send_code(_body: SendCode) -> SendCodeResponse {
-    SendCodeResponse { found_account: false }
-}
-
-#[openapi]
-async fn no_params() -> SendCodeResponse {
-    SendCodeResponse { found_account: false }
+    SendCodeResponse {
+        found_account: false,
+    }
 }
 
 fn main() {
-    let _ = Server::none()
-        .get("/hello", send_code)
-        // .get("/no_params", no_params())
-        ;
+    use pretty_assertions::assert_eq;
+    let server = Server::none().get("/hello", send_code).freeze();
+
+    let spec = serde_yaml::to_string(&*server.openapi).unwrap();
+    assert_eq!(spec.trim(), include_str!("01-hello.yaml"));
 }

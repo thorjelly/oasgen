@@ -100,8 +100,9 @@ macro_rules! construct_operation {
                 let response_body = Fut::Output::schema_ref();
 
                 let mut operation = Operation {
-                    operation_id: type_name_to_operation_id(std::any::type_name::<F>()),
+                    operation_id: FuncMetadata::operation_id().map(str::to_string).or_else(|| type_name_to_operation_id(std::any::type_name::<F>())),
                     summary: FuncMetadata::summary().map(str::to_string),
+                    description: FuncMetadata::description().map(str::to_string),
                     parameters,
                     ..Operation::default()
                 };

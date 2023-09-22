@@ -37,11 +37,10 @@ pub fn derive_oaschema(item: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-pub fn openapi(_args: TokenStream, input: TokenStream) -> TokenStream {
+pub fn openapi(args: TokenStream, input: TokenStream) -> TokenStream {
     let span = proc_macro2::Span::call_site();
 
     let mut ast = parse_macro_input!(input as syn::ItemFn);
-    // println!("{:#?}", _args);
     let name = &ast.sig.ident;
     let marker_struct_name = syn::Ident::new(&format!("__{}__metadata", name), name.span());
 
@@ -104,14 +103,25 @@ pub fn openapi(_args: TokenStream, input: TokenStream) -> TokenStream {
     //     TokenStream2::new()
     // };
 
-    // println!("{}", ast.to_token_stream());
+    let mut operation_id = quote! { None };
+    let arg_parser = syn::meta::parser(|meta| {
+        if meta.path.is_ident("operation_id") {
+            let s: LitStr = meta.value()?.parse()?;
+            operation_id = quote! { Some(#s) };
+            Ok(())
+        } else {
+            Err(meta.error("unsupported openapi property"))
+        }
+    });
+    parse_macro_input!(args with arg_parser);
+
     let marker_struct_impl_FunctionMetadata = quote! {
         impl ::oasgen::FunctionMetadata for #marker_struct_name where
             #output_type: OaSchema
             #(, #bounds )*
         {
             fn operation_id() -> Option<&'static str> {
-                None
+                #operation_id
             }
 
             fn summary() -> Option<&'static str> {
