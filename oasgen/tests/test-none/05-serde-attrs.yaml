@@ -21,6 +21,9 @@ properties:
   isNotRequired:
     nullable: true
     type: string
+  isAlsoNotRequired:
+    nullable: true
+    type: integer
 required:
 - camelBar
 - camelDuration
