@@ -6,8 +6,13 @@ use serde::{Deserialize, Serialize};
 pub struct Bar {
     #[serde(rename = "is_renamed")]
     is_required: i32,
-    #[serde(skip_serializing_if = "Option::is_none")]
     is_not_required: Option<String>,
+}
+
+#[derive(OaSchema, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Baz {
+    is_also_not_required: i32,
 }
 
 #[derive(OaSchema, Serialize, Deserialize)]
@@ -28,6 +33,8 @@ pub struct Foo {
     camel_duration: Duration,
     #[serde(flatten)]
     flattened: Bar,
+    #[serde(flatten)]
+    optional_flattened: Option<Baz>,
 }
 
 fn main() {

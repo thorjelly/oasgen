@@ -37,15 +37,22 @@ pub fn derive_oaschema_process_fields(fields: &[Field]) -> TokenStream2 {
 
             if f.attrs.flatten() {
                 quote! {
+                    let is_required = <#ty as OaSchema>::required();
                     if let ::oasgen::SchemaKind::Type(::oasgen::Type::Object(::oasgen::ObjectType { properties, required, .. }))
                             = #schema.schema_kind {
                         for (name, schema) in properties.into_iter() {
-                            match schema {
-                                ::oasgen::ReferenceOr::Item(mut item) => o.add_property(&name, item.clone()).unwrap(),
+                            let mut item = match schema {
+                                ::oasgen::ReferenceOr::Item(item) => item.clone(),
                                 ::oasgen::ReferenceOr::Reference {..} => panic!("Cannot flatten a reference")
+                            };
+                            if !is_required {
+                                item.schema_data.nullable = true;
                             }
+                            o.add_property(&name, item.clone()).unwrap();
                         }
-                        o.required_mut().unwrap().extend_from_slice(&required);
+                        if is_required {
+                            o.required_mut().unwrap().extend_from_slice(&required);
+                        }
                     }
                 }
             } else {
