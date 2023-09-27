@@ -4,7 +4,7 @@
 // forwarding to an inner mod fixes the issue.
 #[cfg(feature = "actix")]
 mod inner {
-    use actix_web::{web, App, HttpResponse, HttpServer};
+    use actix_web::{http::Method, web, App, HttpResponse, HttpServer};
     use oasgen::{openapi, OaSchema, Server};
     use serde::{Deserialize, Serialize};
     use std::fs::File;
@@ -30,8 +30,20 @@ mod inner {
         pub found_account: bool,
     }
 
+    #[derive(Serialize, OaSchema, Debug)]
+    pub struct EchoResponse {
+        pub echo: String,
+    }
+
     #[openapi]
-    async fn echo(query: web::Query<Echo>) -> HttpResponse {
+    async fn get_echo(query: web::Query<Echo>) -> web::Json<EchoResponse> {
+        web::Json(EchoResponse {
+            echo: query.echo.clone(),
+        })
+    }
+
+    #[openapi]
+    async fn post_echo(query: web::Query<Echo>) -> HttpResponse {
         println!("{}", query.echo);
         HttpResponse::Ok().finish()
     }
@@ -55,7 +67,8 @@ mod inner {
         let host = format!("{}:{}", host, port);
 
         let server = Server::actix()
-            .get("/echo", echo)
+            .get("/echo", get_echo)
+            .post("/echo", post_echo)
             .post("/send-code", send_code)
             .post("/verify-code", verify_code)
             .route_json_spec("/openapi.json")
@@ -67,7 +80,6 @@ mod inner {
         HttpServer::new(move || {
             let spec = server.openapi.clone();
             App::new()
-                // App::new()
                 .route(
                     "/healthcheck",
                     web::get().to(|| async { HttpResponse::Ok().body("Ok") }),

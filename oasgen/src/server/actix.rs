@@ -1,10 +1,13 @@
 use actix_web::{
-    delete, web, Error, FromRequest, Handler, HttpResponse, Resource, Responder, Scope,
+    delete, web, Error, FromRequest, Handler, HttpResponse, Resource, Responder, Route, Scope,
 };
 use futures::future::{ok, Ready};
 use http::Method;
 use openapiv3::OpenAPI;
-use std::sync::{Arc, RwLock};
+use std::{
+    collections::{hash_map::Entry, HashMap},
+    sync::{Arc, RwLock},
+};
 
 use oasgen_core::{OaOperation, OaSchema};
 
@@ -13,48 +16,51 @@ use crate::Format;
 use super::Server;
 
 #[derive(Default)]
-pub struct ActixRouter(Vec<InnerResourceFactory<'static>>);
+pub struct ActixRouter(HashMap<String, Vec<InnerRouteFactory<'static>>>);
 
 impl Clone for ActixRouter {
     fn clone(&self) -> Self {
-        ActixRouter(self.0.iter().map(|f| f.manual_clone()).collect::<Vec<_>>())
+        ActixRouter(
+            self.0
+                .iter()
+                .map(|(k, v)| {
+                    (
+                        k.clone(),
+                        v.into_iter().map(|r| r.manual_clone()).collect::<Vec<_>>(),
+                    )
+                })
+                .collect::<HashMap<_, _>>(),
+        )
     }
 }
 
-/// ResourceFactory is a no-argument closure that returns a user-provided view handler.
+/// RouteFactory is a no-argument closure that returns a user-provided view handler.
 ///
-/// Because `actix_web::Resource : !Clone`, we can't store the `Resource` directly in the `Server`
+/// Because `actix_web::Route : !Clone`, we can't store the `Route` directly in the `Server`
 /// struct (since we need `Server: Clone`, because `Server` is cloned for every server thread by actix_web).
 /// This trait essentially adds `Clone` to these closures.
-pub trait ResourceFactory<'a>: Send + Fn() -> Resource {
-    fn manual_clone(&self) -> InnerResourceFactory<'static>;
+pub trait RouteFactory<'a>: Send + Fn() -> Route {
+    fn manual_clone(&self) -> InnerRouteFactory<'static>;
 }
 
-impl<'a, T> ResourceFactory<'a> for T
+impl<'a, T> RouteFactory<'a> for T
 where
-    T: 'static + Clone + Fn() -> Resource + Send,
+    T: 'static + Clone + Fn() -> Route + Send,
 {
-    fn manual_clone(&self) -> InnerResourceFactory<'static> {
+    fn manual_clone(&self) -> InnerRouteFactory<'static> {
         Box::new(self.clone())
     }
 }
 
-pub type InnerResourceFactory<'a> = Box<dyn ResourceFactory<'a, Output = Resource>>;
+pub type InnerRouteFactory<'a> = Box<dyn RouteFactory<'a, Output = Route>>;
 
-fn build_inner_resource<F, Args>(
-    path: String,
-    method: Method,
-    handler: F,
-) -> InnerResourceFactory<'static>
+fn build_inner_route<F, Args>(method: Method, handler: F) -> InnerRouteFactory<'static>
 where
     F: Handler<Args> + 'static + Copy + Send,
     Args: FromRequest + 'static,
     F::Output: Responder + 'static,
 {
-    Box::new(move || {
-        actix_web::Resource::new(path.clone())
-            .route(actix_web::web::route().method(method.clone()).to(handler))
-    })
+    Box::new(move || actix_web::web::route().method(method.clone()).to(handler))
 }
 
 macro_rules! route_method {
@@ -67,11 +73,15 @@ macro_rules! route_method {
             <F as actix_web::Handler<Args>>::Output: OaSchema,
         {
             self.add_handler_to_spec(path, Method::$variant, &handler);
-            self.router.0.push(build_inner_resource(
-                path.to_string(),
-                Method::$variant,
-                handler,
-            ));
+            let inner_route = build_inner_route(Method::$variant, handler);
+            match self.router.0.entry(path.to_string()) {
+                Entry::Occupied(mut e) => {
+                    e.get_mut().push(inner_route);
+                }
+                Entry::Vacant(e) => {
+                    e.insert(vec![inner_route]);
+                }
+            }
             self
         }
     };
@@ -96,8 +106,12 @@ impl Server<ActixRouter> {
 impl Server<ActixRouter, Arc<OpenAPI>> {
     pub fn into_service(self) -> Scope {
         let mut scope = web::scope(&self.prefix.unwrap_or_default());
-        for resource in self.router.0 {
-            scope = scope.service(resource());
+        for (path, routes) in self.router.0 {
+            let mut resource = Resource::new(path);
+            for route in routes {
+                resource = resource.route(route());
+            }
+            scope = scope.service(resource);
         }
         if let Some(path) = self.json_route {
             scope = scope.service(
